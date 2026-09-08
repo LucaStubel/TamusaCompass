@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Jaguar Campus Compass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body><div id="app">
+
+<!-- ========== COMPASS (OUTDOOR) ========== -->
+<div class="view on" id="v-compass">
+  <div class="home">
+    <div class="tw-brand">
+      <img class="tamu-logo" src="images/tamu-logo.png" alt="Texas A&M University San Antonio"/>
+      <div class="sub-brand">Campus Compass</div>
+    </div>
+
+    <div class="mid">
+      <div class="compass-stage" id="compassStage">
+        <div class="halo"></div>
+        <div class="radar" id="radar">
+          <div class="dial">
+            <div class="map" style="background-image:url(images/compass-map.jpg)"></div>
+            <div class="needle" id="needle"><b></b></div>
+            <div class="hub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="ahead">
+        <div class="lbl">Ahead of you</div>
+        <div class="bldg" id="aheadName">—</div>
+        <div class="dist" id="aheadDist">Enable the compass to begin</div>
+      </div>
+    </div>
+
+    <div class="homebottom">
+      <button class="btn-enable" id="enableBtn" onclick="enableSensors()">📍 Enable compass</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+</div>
+<script src="app.js"></script>
+</body></html>
