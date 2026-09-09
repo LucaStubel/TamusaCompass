@@ -139,9 +139,9 @@ function updateRadar(){
   N.chip.style.left=N.cx+'px'; N.chip.style.top=N.cy+'px'; N.chip.style.transform='translate(-50%,-50%)';
   if(N.hi)N.chip.style.zIndex=6;
   const lot=N.it.b.lot;
-  sv+='<line x1="'+N.dx.toFixed(1)+'" y1="'+N.dy.toFixed(1)+'" x2="'+N.cx.toFixed(1)+'" y2="'+N.cy.toFixed(1)+'" stroke="'+(N.hi?'#E8A51C':'#B99A5B')+'" stroke-width="'+(N.hi?1.5:1)+'" opacity="'+(N.hi?.85:.4)+'"/>';
+  sv+='<line x1="'+N.dx.toFixed(1)+'" y1="'+N.dy.toFixed(1)+'" x2="'+N.cx.toFixed(1)+'" y2="'+N.cy.toFixed(1)+'" stroke="'+(N.hi?'#FFCD00':'#C9A94A')+'" stroke-width="'+(N.hi?1.5:1)+'" opacity="'+(N.hi?.85:.4)+'"/>';
   const r=N.hi?5:3.2;
-  sv+='<circle cx="'+N.dx.toFixed(1)+'" cy="'+N.dy.toFixed(1)+'" r="'+r+'" fill="'+(lot?'#2c0004':'#E8A51C')+'" stroke="'+(lot?'#B99A5B':(N.hi?'#fff':'#7a5a12'))+'" stroke-width="'+(lot?1.6:(N.hi?2:0))+'"/>';
+  sv+='<circle cx="'+N.dx.toFixed(1)+'" cy="'+N.dy.toFixed(1)+'" r="'+r+'" fill="'+(lot?'#4E0A20':'#FFCD00')+'" stroke="'+(lot?'#C9A94A':(N.hi?'#fff':'#7a5a12'))+'" stroke-width="'+(lot?1.6:(N.hi?2:0))+'"/>';
  });
  sv+='</svg>';
  radar.insertAdjacentHTML('afterbegin', sv);

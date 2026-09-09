@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<title>Jaguar Campus Compass</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#740F2F"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="ThatWay Compass"/>
+<title>ThatWay · Campus Compass</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Vollkorn:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body><div id="app">
+<img class="dome-wm" src="images/dome-header.png" alt=""/>
 
-<!-- ========== COMPASS (OUTDOOR) ========== -->
+<!-- ========== CAMPUS COMPASS ========== -->
 <div class="view on" id="v-compass">
   <div class="home">
     <div class="tw-brand">
-      <img class="tamu-logo" src="images/tamu-logo.png" alt="Texas A&M University San Antonio"/>
+      <img class="brandlogo" src="images/thatway-logo.png" alt="ThatWay"/>
       <div class="sub-brand">Campus Compass</div>
     </div>
 
@@ -36,13 +40,12 @@
     </div>
 
     <div class="homebottom">
-      <button class="btn-enable" id="enableBtn" onclick="enableSensors()">📍 Enable compass</button>
+      <button class="btn-enable" id="enableBtn" onclick="enableSensors()">Enable compass</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
-
 </div>
 <script src="app.js"></script>
 </body></html>
