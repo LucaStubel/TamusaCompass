@@ -44,30 +44,55 @@ function show(v){view=v;const el=document.querySelector('#v-'+v);if(el)el.classL
 
 /* ---------- compass / sensors ---------- */
 let heading=null, headingOk=false, userPos=null;
-/* ===== ORIENTATION (iPhone) =====
+let sensorsOn=false, posReal=false, needCalib=false;   // posReal = userPos came from GPS (not the campus-centre fallback)
+/* ===== ORIENTATION (iPhone + Android) =====
    iOS gives one true-north value: webkitCompassHeading (0=N, clockwise).
-   We use it directly + a light wrap-safe low-pass so the readout is steady. */
+   Android gives an absolute alpha (0=N, counter-clockwise) -> heading = 360-alpha.
+   Either way a light wrap-safe low-pass keeps the readout steady. */
 let _hs=null;
 function onOrient(e){
- if(typeof e.webkitCompassHeading!=='number'||isNaN(e.webkitCompassHeading))return;
- const raw=norm(e.webkitCompassHeading);
+ let raw;
+ if(typeof e.webkitCompassHeading==='number'&&!isNaN(e.webkitCompassHeading)) raw=norm(e.webkitCompassHeading);
+ else if((e.absolute||e.type==='deviceorientationabsolute')&&typeof e.alpha==='number'&&!isNaN(e.alpha)) raw=norm(360-e.alpha);
+ else return;
  if(_hs===null)_hs=raw;
  else{const d=((raw-_hs+540)%360)-180;_hs=norm(_hs+d*0.3);}
- heading=_hs;headingOk=true;
- if(view==='compass')updateRadar();
+ if(!headingOk){const _eb=$('#enableBtn');if(_eb){_eb.textContent='✓ Compass live';_eb.disabled=true;_eb.classList.add('on');}}
+ heading=_hs;headingOk=true;needCalib=false;blocked=false;
+ if(view==='compass')scheduleRadar();
 }
+let blocked=false;
 async function enableSensors(){
+ const _eb=$('#enableBtn');
  try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){
-   const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted')toast('Compass permission denied');}
- }catch(e){}
- window.addEventListener('deviceorientation',onOrient,true);
- setTimeout(()=>{if(!headingOk){const dd=$('#aheadDist');if(dd)dd.textContent='↻ Move phone in a figure-8 to calibrate';toast('Compass needs calibration — move the phone in a figure-8');}},3800);
+   const r=await DeviceOrientationEvent.requestPermission();
+   blocked=(r!=='granted');
+   if(blocked)toast('Compass blocked — allow Motion & Orientation access for this site, then reload');
+ }}catch(e){}
+ // "✓ Compass live" is only shown once real heading data arrives (see onOrient)
+ if(_eb&&!headingOk)_eb.textContent=blocked?'Compass blocked — tap to retry':'Starting compass…';
+ if(sensorsOn){updateRadar();return;}
+ sensorsOn=true;
+ // Android Chrome: absolute (true-north) events; everything else: the standard event
+ window.addEventListener('ondeviceorientationabsolute' in window?'deviceorientationabsolute':'deviceorientation',onOrient,true);
+ setTimeout(()=>{if(!headingOk){needCalib=true;updateRadar();toast('Compass needs calibration — move the phone in a figure-8');}},3800);
  if(navigator.geolocation){navigator.geolocation.watchPosition(
-   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};updateRadar();},
-   ()=>{if(!userPos){userPos=DEFAULT_POS;updateRadar();}},
+   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};posReal=true;scheduleRadar();},
+   err=>{if(!posReal){userPos=DEFAULT_POS;updateRadar();
+     if(err&&err.code===1)toast('Location is off — turn it on to see distances');}},
    {enableHighAccuracy:true,maximumAge:2000,timeout:9000});}
- const _eb=$('#enableBtn');if(_eb){_eb.textContent='✓ Compass live';_eb.disabled=true;_eb.classList.add('on');}if($('#aheadDist')&&!headingOk)$('#aheadDist').textContent='Locating you…';
+ else toast('Location not available — distances hidden');
+ updateRadar();
  setTimeout(()=>{if(!userPos){userPos=DEFAULT_POS;updateRadar();}},1200);
+}
+/* redraw at most once per frame, and only when heading/position really changed */
+let _rafPending=false, _drawnH=null, _drawnPos=null;
+function scheduleRadar(){
+ if(_rafPending)return; _rafPending=true;
+ requestAnimationFrame(()=>{_rafPending=false;
+  const h=norm(heading||0), dh=_drawnH===null?999:Math.abs(((h-_drawnH+540)%360)-180);
+  if(dh<1&&_drawnPos===userPos)return;
+  updateRadar();});
 }
 function geo(la1,lo1,la2,lo2){const R=6371000,r=Math.PI/180;
  const dLo=(lo2-lo1)*r;const y=Math.sin(dLo)*Math.cos(la2*r);
@@ -80,6 +105,7 @@ let _lastAhead=null;
 try{localStorage.removeItem('jc_calib');localStorage.removeItem('jc_markers');}catch(e){}
 function updateRadar(){
  const pos=userPos||DEFAULT_POS, h=norm(heading||0);
+ _drawnH=h; _drawnPos=userPos;
  $('#needle').style.transform='translate(-50%,-100%) rotate(0deg)';
  const radar=$('#radar');
  [...radar.querySelectorAll('.chip')].forEach(c=>c.remove());
@@ -107,8 +133,8 @@ function updateRadar(){
   const a=it.srel*Math.PI/180, hi=it.b.n===best.b.n;
   const chip=document.createElement('div');
   chip.className='chip'+(hi?' hi':'')+(it.b.lot?' lot':'');
-  chip.innerHTML='<div class="n">'+shortName(it.b.n)+'</div>'+(hi?'<div class="d">'+Math.round(it.g.ft)+' ft</div>':'');
-  chip.onclick=(e)=>{if(e)e.stopPropagation();toast('Head to '+it.b.n+' — '+Math.round(it.g.ft)+' ft');};
+  chip.innerHTML='<div class="n">'+shortName(it.b.n)+'</div>'+(hi&&posReal?'<div class="d">'+Math.round(it.g.ft)+' ft</div>':'');
+  chip.onclick=(e)=>{if(e)e.stopPropagation();toast('Head to '+it.b.n+(posReal?' — '+Math.round(it.g.ft)+' ft':''));};
   radar.appendChild(chip);
   nodes.push({it,hi,chip,dx:C+dotR*Math.sin(a),dy:C-dotR*Math.cos(a),
               cx:C+it._r*Math.sin(a),cy:C-it._r*Math.cos(a),w:chip.offsetWidth,ht:chip.offsetHeight});
@@ -148,8 +174,16 @@ function updateRadar(){
 
  if(best){
   $('#aheadName').textContent=best.b.n;
-  $('#aheadDist').textContent=headingOk?(Math.round(best.g.ft)+' ft · '+compassWord(norm(best.g.brg))):'Tap the compass to activate';
+  $('#aheadDist').textContent=statusText(best);
  }
+}
+function statusText(best){
+ if(!sensorsOn) return 'Tap “Enable compass” to begin';
+ if(!headingOk&&blocked) return 'Compass access is blocked for this site';
+ if(!headingOk) return needCalib?'↻ Move phone in a figure-8 to calibrate':'Finding your direction…';
+ const dir=compassWord(norm(best.g.brg));
+ if(!posReal) return userPos?dir+' · turn on location for distance':'Locating you…';
+ return Math.round(best.g.ft)+' ft · '+dir;
 }
 function compassWord(b){return['N','NE','E','SE','S','SW','W','NW'][Math.round(b/45)%8];}
 
