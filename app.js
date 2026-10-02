@@ -59,7 +59,24 @@ function onOrient(e){
  else{const d=((raw-_hs+540)%360)-180;_hs=norm(_hs+d*0.3);}
  if(!headingOk){const _eb=$('#enableBtn');if(_eb){_eb.textContent='✓ Compass live';_eb.disabled=true;_eb.classList.add('on');}}
  heading=_hs;headingOk=true;needCalib=false;blocked=false;
+ if(DEBUG){_dbg.src=typeof e.webkitCompassHeading==='number'?'iOS webkitCompassHeading':e.type+(e.absolute?' (absolute)':'');
+  _dbg.raw=raw;_dbg.acc=e.webkitCompassAccuracy;_dbg.beta=e.beta;_dbg.gamma=e.gamma;_dbg.n=(_dbg.n||0)+1;}
  if(view==='compass')scheduleRadar();
+}
+/* ---------- diagnostics: add ?debug=1 to the URL ---------- */
+const DEBUG=/[?&]debug=1/.test(location.search);
+const _dbg={};
+function drawDebug(items,best){
+ if(!DEBUG)return; let el=$('#dbg');
+ if(!el){el=document.createElement('pre');el.id='dbg';el.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;margin:0;padding:8px;background:rgba(0,0,0,.82);color:#9f9;font:11px/1.35 ui-monospace,Menlo,monospace;border-radius:8px;white-space:pre-wrap;pointer-events:none';document.body.appendChild(el);}
+ const f=(v,d=1)=>typeof v==='number'?v.toFixed(d):'—';
+ const top=[...items].sort((a,b)=>Math.abs(a.srel)-Math.abs(b.srel)).slice(0,4)
+  .map(i=>'  '+i.b.n.padEnd(14)+' brg '+f(i.g.brg,0).padStart(3)+'°  off '+f(i.srel,0).padStart(4)+'°  '+f(i.g.ft/M2FT,0)+' m').join('\n');
+ el.textContent='source  '+(_dbg.src||'no heading events yet')+'  (#'+(_dbg.n||0)+')\n'
+  +'raw '+f(_dbg.raw)+'°  smooth '+f(heading)+'°  ±'+f(_dbg.acc,0)+'°\n'
+  +'tilt beta '+f(_dbg.beta,0)+'°  gamma '+f(_dbg.gamma,0)+'°\n'
+  +'gps '+(posReal&&userPos?f(userPos.lat,6)+', '+f(userPos.lon,6)+'  ±'+f(_dbg.gpsAcc,0)+' m':'NOT REAL (fallback / waiting)')+'\n'
+  +'ahead '+(best?best.b.n:'—')+'\nclosest to your heading:\n'+top;
 }
 let blocked=false;
 async function enableSensors(){
@@ -77,7 +94,7 @@ async function enableSensors(){
  window.addEventListener('ondeviceorientationabsolute' in window?'deviceorientationabsolute':'deviceorientation',onOrient,true);
  setTimeout(()=>{if(!headingOk){needCalib=true;updateRadar();toast('Compass needs calibration — move the phone in a figure-8');}},3800);
  if(navigator.geolocation){navigator.geolocation.watchPosition(
-   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};posReal=true;scheduleRadar();},
+   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};posReal=true;_dbg.gpsAcc=p.coords.accuracy;scheduleRadar();},
    err=>{if(!posReal){userPos=DEFAULT_POS;updateRadar();
      if(err&&err.code===1)toast('Location is off — turn it on to see distances');}},
    {enableHighAccuracy:true,maximumAge:2000,timeout:9000});}
@@ -176,6 +193,7 @@ function updateRadar(){
   $('#aheadName').textContent=best.b.n;
   $('#aheadDist').textContent=statusText(best);
  }
+ drawDebug(items,best);
 }
 function statusText(best){
  if(!sensorsOn) return 'Tap “Enable compass” to begin';
