@@ -32,27 +32,11 @@ const CONFIG = {
  {n:"Estrella Hall",lat:29.304796,lon:-98.521162},    // OpenStreetMap building centre
  {n:"Lot 6",lat:29.302432340,lon:-98.523191172,lot:true},
  {n:"PHEB",lat:29.302683109,lon:-98.525228710},
-],
- // dial map: where the image sits on the earth (fitted to OpenStreetMap, ~8 m accuracy).
- // px = ax0*east + ax1*north + ax2 ; py = ay0*east + ay1*north + ay2   (east/north in metres from origin)
- map: { img:"images/compass-map.jpg", w:1100, h:532, zoom:0.4474,   // zoom = dial px per image px
-        origin:{lat:29.3035,lon:-98.5247},
-        ax:[0.79135,0.01387,564.72], ay:[-0.00231,-0.83576,201.27] }
+]
 };
 /* ---------- from here on the ENGINE just reads the config ---------- */
 const BUILDINGS = CONFIG.buildings
 const DEFAULT_POS=CONFIG.center; // campus centre (demo fallback)
-
-/* ---------- dial map: rotates with the heading, centred on the user ---------- */
-function mapPixel(lat,lon){ const M=CONFIG.map, r=Math.PI/180;
- const e=(lon-M.origin.lon)*111320*Math.cos(M.origin.lat*r), n=(lat-M.origin.lat)*110950;
- return [M.ax[0]*e+M.ax[1]*n+M.ax[2], M.ay[0]*e+M.ay[1]*n+M.ay[2]]; }
-const _mapEl=document.querySelector('.dial .map');
-if(_mapEl){ const M=CONFIG.map; _mapEl.style.width=(M.w*M.zoom)+'px'; _mapEl.style.height=(M.h*M.zoom)+'px'; }
-function placeMap(pos,h){ if(!_mapEl)return; const M=CONFIG.map;
- let [px,py]=mapPixel(pos.lat,pos.lon);
- px=Math.max(0,Math.min(M.w,px)); py=Math.max(0,Math.min(M.h,py));   // off campus: stay on the map edge
- _mapEl.style.transform='rotate('+(-h).toFixed(1)+'deg) translate('+(-px*M.zoom).toFixed(1)+'px,'+(-py*M.zoom).toFixed(1)+'px)'; }
 
 /* ---------- view ---------- */
 let view='compass';
@@ -142,7 +126,6 @@ try{localStorage.removeItem('jc_calib');localStorage.removeItem('jc_markers');}c
 function updateRadar(){
  const pos=userPos||DEFAULT_POS, h=norm(heading||0);
  _drawnH=h; _drawnPos=userPos;
- placeMap(pos,h);
  $('#needle').style.transform='translate(-50%,-100%) rotate(0deg)';
  const radar=$('#radar');
  [...radar.querySelectorAll('.chip')].forEach(c=>c.remove());
