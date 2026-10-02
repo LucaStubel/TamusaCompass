@@ -20,23 +20,39 @@ const CONFIG = {
  buildings: [
  {n:"CAB",lat:29.303484613,lon:-98.524708886,cab:true},
  {n:"Hall",lat:29.302640986,lon:-98.524123109},
- {n:"Library",lat:29.302108546,lon:-98.523819692},
+ {n:"Library",lat:29.301920,lon:-98.524044},          // OpenStreetMap building centre
  {n:"MOD A/B/C",lat:29.302695193,lon:-98.526384024},
  {n:"REC",lat:29.303705648,lon:-98.528188918},
  {n:"STEM",lat:29.304443363,lon:-98.525446436},
  {n:"Madla",lat:29.304699039,lon:-98.524258599},
  {n:"Patriots Casa",lat:29.303669740,lon:-98.522919309},
- {n:"Auditorium",lat:29.303820402,lon:-98.525452304},
+ {n:"Auditorium",lat:29.303615,lon:-98.525449},       // OpenStreetMap building centre
  {n:"Lot 1",lat:29.304616382,lon:-98.522841342,lot:true},
  {n:"Lot 2",lat:29.304053477,lon:-98.526481848,lot:true},
- {n:"Estrella Hall",lat:29.305255409,lon:-98.521178531},
+ {n:"Estrella Hall",lat:29.304796,lon:-98.521162},    // OpenStreetMap building centre
  {n:"Lot 6",lat:29.302432340,lon:-98.523191172,lot:true},
  {n:"PHEB",lat:29.302683109,lon:-98.525228710},
-]
+],
+ // dial map: where the image sits on the earth (fitted to OpenStreetMap, ~8 m accuracy).
+ // px = ax0*east + ax1*north + ax2 ; py = ay0*east + ay1*north + ay2   (east/north in metres from origin)
+ map: { img:"images/compass-map.jpg", w:1100, h:532, zoom:0.4474,   // zoom = dial px per image px
+        origin:{lat:29.3035,lon:-98.5247},
+        ax:[0.79135,0.01387,564.72], ay:[-0.00231,-0.83576,201.27] }
 };
 /* ---------- from here on the ENGINE just reads the config ---------- */
 const BUILDINGS = CONFIG.buildings
-const DEFAULT_POS=CONFIG.center; // campus centre (demo fallback) // campus centroid (demo fallback) // campus center (fallback for demo)
+const DEFAULT_POS=CONFIG.center; // campus centre (demo fallback)
+
+/* ---------- dial map: rotates with the heading, centred on the user ---------- */
+function mapPixel(lat,lon){ const M=CONFIG.map, r=Math.PI/180;
+ const e=(lon-M.origin.lon)*111320*Math.cos(M.origin.lat*r), n=(lat-M.origin.lat)*110950;
+ return [M.ax[0]*e+M.ax[1]*n+M.ax[2], M.ay[0]*e+M.ay[1]*n+M.ay[2]]; }
+const _mapEl=document.querySelector('.dial .map');
+if(_mapEl){ const M=CONFIG.map; _mapEl.style.width=(M.w*M.zoom)+'px'; _mapEl.style.height=(M.h*M.zoom)+'px'; }
+function placeMap(pos,h){ if(!_mapEl)return; const M=CONFIG.map;
+ let [px,py]=mapPixel(pos.lat,pos.lon);
+ px=Math.max(0,Math.min(M.w,px)); py=Math.max(0,Math.min(M.h,py));   // off campus: stay on the map edge
+ _mapEl.style.transform='rotate('+(-h).toFixed(1)+'deg) translate('+(-px*M.zoom).toFixed(1)+'px,'+(-py*M.zoom).toFixed(1)+'px)'; }
 
 /* ---------- view ---------- */
 let view='compass';
@@ -45,6 +61,9 @@ function show(v){view=v;const el=document.querySelector('#v-'+v);if(el)el.classL
 /* ---------- compass / sensors ---------- */
 let heading=null, headingOk=false, userPos=null;
 let sensorsOn=false, posReal=false, needCalib=false;   // posReal = userPos came from GPS (not the campus-centre fallback)
+let posAcc=null;                                       // GPS accuracy in metres
+/* distance label; "~" + coarse rounding when GPS is worse than ±50 m */
+function fmtFt(f){ return (posAcc>50) ? '~'+Math.round(f/50)*50+' ft' : Math.round(f)+' ft'; }
 /* ===== ORIENTATION (iPhone + Android) =====
    iOS gives one true-north value: webkitCompassHeading (0=N, clockwise).
    Android gives an absolute alpha (0=N, counter-clockwise) -> heading = 360-alpha.
@@ -94,7 +113,7 @@ async function enableSensors(){
  window.addEventListener('ondeviceorientationabsolute' in window?'deviceorientationabsolute':'deviceorientation',onOrient,true);
  setTimeout(()=>{if(!headingOk){needCalib=true;updateRadar();toast('Compass needs calibration — move the phone in a figure-8');}},3800);
  if(navigator.geolocation){navigator.geolocation.watchPosition(
-   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};posReal=true;_dbg.gpsAcc=p.coords.accuracy;scheduleRadar();},
+   p=>{userPos={lat:p.coords.latitude,lon:p.coords.longitude};posReal=true;posAcc=p.coords.accuracy;_dbg.gpsAcc=posAcc;scheduleRadar();},
    err=>{if(!posReal){userPos=DEFAULT_POS;updateRadar();
      if(err&&err.code===1)toast('Location is off — turn it on to see distances');}},
    {enableHighAccuracy:true,maximumAge:2000,timeout:9000});}
@@ -123,6 +142,7 @@ try{localStorage.removeItem('jc_calib');localStorage.removeItem('jc_markers');}c
 function updateRadar(){
  const pos=userPos||DEFAULT_POS, h=norm(heading||0);
  _drawnH=h; _drawnPos=userPos;
+ placeMap(pos,h);
  $('#needle').style.transform='translate(-50%,-100%) rotate(0deg)';
  const radar=$('#radar');
  [...radar.querySelectorAll('.chip')].forEach(c=>c.remove());
@@ -150,8 +170,8 @@ function updateRadar(){
   const a=it.srel*Math.PI/180, hi=it.b.n===best.b.n;
   const chip=document.createElement('div');
   chip.className='chip'+(hi?' hi':'')+(it.b.lot?' lot':'');
-  chip.innerHTML='<div class="n">'+shortName(it.b.n)+'</div>'+(hi&&posReal?'<div class="d">'+Math.round(it.g.ft)+' ft</div>':'');
-  chip.onclick=(e)=>{if(e)e.stopPropagation();toast('Head to '+it.b.n+(posReal?' — '+Math.round(it.g.ft)+' ft':''));};
+  chip.innerHTML='<div class="n">'+shortName(it.b.n)+'</div>'+(hi&&posReal?'<div class="d">'+fmtFt(it.g.ft)+'</div>':'');
+  chip.onclick=(e)=>{if(e)e.stopPropagation();toast('Head to '+it.b.n+(posReal?' — '+fmtFt(it.g.ft):''));};
   radar.appendChild(chip);
   nodes.push({it,hi,chip,dx:C+dotR*Math.sin(a),dy:C-dotR*Math.cos(a),
               cx:C+it._r*Math.sin(a),cy:C-it._r*Math.cos(a),w:chip.offsetWidth,ht:chip.offsetHeight});
@@ -201,7 +221,7 @@ function statusText(best){
  if(!headingOk) return needCalib?'↻ Move phone in a figure-8 to calibrate':'Finding your direction…';
  const dir=compassWord(norm(best.g.brg));
  if(!posReal) return userPos?dir+' · turn on location for distance':'Locating you…';
- return Math.round(best.g.ft)+' ft · '+dir;
+ return fmtFt(best.g.ft)+' · '+dir;
 }
 function compassWord(b){return['N','NE','E','SE','S','SW','W','NW'][Math.round(b/45)%8];}
 
